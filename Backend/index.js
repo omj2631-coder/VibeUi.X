@@ -296,7 +296,12 @@ async function generateWithOpenAI(prompt, theme, sections, brandStyle = "minimal
     return null;
   }
 }
-
+app.get("/", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "VibeUI backend",
+  });
+});
 app.post("/api/generate", async (req, res) => {
   const {
     prompt,
