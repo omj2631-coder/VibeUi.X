@@ -9,6 +9,10 @@ let geminiApiKeyInvalid = false;
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.json({ status: "ok", service: "VibeUI backend" });
+});
+
 function escapeHtml(value = "") {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -296,12 +300,7 @@ async function generateWithOpenAI(prompt, theme, sections, brandStyle = "minimal
     return null;
   }
 }
-app.get("/", (req, res) => {
-  res.json({
-    status: "ok",
-    service: "VibeUI backend",
-  });
-});
+
 app.post("/api/generate", async (req, res) => {
   const {
     prompt,
@@ -402,7 +401,11 @@ app.post("/api/generate", async (req, res) => {
 
 const port = Number(process.env.PORT) || 5000;
 
-app.listen(port, () => {
-  console.log(`Backend running at http://localhost:${port}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`Backend running at http://localhost:${port}`);
+  });
+}
+
+export default app;
 
