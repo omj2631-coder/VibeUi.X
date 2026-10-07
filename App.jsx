@@ -315,7 +315,17 @@ export default function App() {
   }
 
   function toggleSection(name) {
-    setSections((prev) => ({ ...prev, [name]: !prev[name] }));
+    const nextSections = { ...sections, [name]: !sections[name] };
+    generationRequestId.current += 1;
+    setSections(nextSections);
+    setGeneratedCode(createWebsite(prompt, theme, nextSections, brandStyle, audience, ctaLabel));
+    setLoading(false);
+    setGenerationError("");
+    setGenerationInfo({
+      provider: "LOCAL",
+      note: "Preview sections updated.",
+    });
+    setPreviewVersion((version) => version + 1);
   }
 
   function changeBrandStyle(nextStyle) {
