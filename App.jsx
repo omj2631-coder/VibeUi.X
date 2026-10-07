@@ -309,6 +309,17 @@ export default function App() {
     setSections((prev) => ({ ...prev, [name]: !prev[name] }));
   }
 
+  function changeBrandStyle(nextStyle) {
+    setBrandStyle(nextStyle);
+    setGeneratedCode(createWebsite(prompt, theme, sections, nextStyle, audience, ctaLabel));
+    setGenerationError("");
+    setGenerationInfo({
+      provider: "LOCAL",
+      note: `${nextStyle.charAt(0).toUpperCase() + nextStyle.slice(1)} brand style applied.`,
+    });
+    setPreviewVersion((version) => version + 1);
+  }
+
   function resetWorkspace() {
     setPrompt("Create a modern landing page for an AI education platform");
     setTheme("light");
@@ -478,7 +489,7 @@ export default function App() {
                   { value: "startup", label: "Startup" },
                   { value: "wellness", label: "Wellness" },
                 ].map((style) => (
-                  <button key={style.value} type="button" className={brandStyle === style.value ? "style-pill is-selected" : "style-pill"} onClick={() => setBrandStyle(style.value)}>
+                  <button key={style.value} type="button" className={brandStyle === style.value ? "style-pill is-selected" : "style-pill"} onClick={() => changeBrandStyle(style.value)}>
                     {style.label}
                   </button>
                 ))}
@@ -510,6 +521,7 @@ export default function App() {
 
             <div className="action-row">
               <button type="button" className="reset-button" onClick={resetWorkspace}>
+                <span aria-hidden="true">↻</span>
                 Reset workspace
               </button>
               <button type="button" className="download-button" onClick={downloadHtml}>
