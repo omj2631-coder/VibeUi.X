@@ -579,7 +579,7 @@ export default function App() {
                   <button type="button" role="tab" aria-selected={previewTab === "preview"} className={previewTab === "preview" ? "is-selected" : ""} onClick={() => setPreviewTab("preview")}>Preview</button>
                   <button type="button" role="tab" aria-selected={previewTab === "html"} className={previewTab === "html" ? "is-selected" : ""} onClick={() => setPreviewTab("html")}>HTML Code</button>
                 </div>
-                <button type="button" className="refresh-preview" onClick={() => setPreviewVersion((version) => version + 1)} title="Refresh preview" aria-label="Refresh preview">Refresh</button>
+                <button type="button" className="refresh-preview" onClick={() => setPreviewVersion((version) => version + 1)} title="Refresh preview" aria-label="Refresh preview">↻</button>
                 <span className="preview-size">DESKTOP <i /> 100%</span>
               </div>
             </div>
