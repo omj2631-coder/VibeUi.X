@@ -340,6 +340,17 @@ export default function App() {
     setPreviewVersion((version) => version + 1);
   }
 
+  function changeCtaLabel(nextCtaLabel) {
+    setCtaLabel(nextCtaLabel);
+    setGeneratedCode(createWebsite(prompt, theme, sections, brandStyle, audience, nextCtaLabel));
+    setGenerationError("");
+    setGenerationInfo({
+      provider: "LOCAL",
+      note: "Primary action updated in the preview.",
+    });
+    setPreviewVersion((version) => version + 1);
+  }
+
   function resetWorkspace() {
     generationRequestId.current += 1;
     setPrompt("Create a modern landing page for an AI education platform");
@@ -542,7 +553,7 @@ export default function App() {
 
               <div>
                 <label className="field-label" htmlFor="cta-input">PRIMARY CTA</label>
-                <input id="cta-input" value={ctaLabel} onChange={(event) => setCtaLabel(event.target.value)} className="input-select" placeholder="Get Started" />
+                <input id="cta-input" value={ctaLabel} onChange={(event) => changeCtaLabel(event.target.value)} className="input-select" placeholder="Get Started" />
               </div>
             </div>
 
