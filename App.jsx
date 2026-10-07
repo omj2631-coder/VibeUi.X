@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+const API_BASE_URL = (
+  import.meta.env.DEV ? import.meta.env.VITE_API_BASE_URL || "" : ""
+).replace(/\/+$/, "");
 
 function escapeHtml(text) {
   return String(text ?? "")
