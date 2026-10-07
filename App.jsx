@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
 
@@ -244,6 +244,7 @@ export default function App() {
     }
   });
   const [previewVersion, setPreviewVersion] = useState(0);
+  const generationRequestId = useRef(0);
 
   async function generateWebsite() {
     if (!prompt.trim()) {
@@ -251,6 +252,8 @@ export default function App() {
       return;
     }
 
+    const requestId = generationRequestId.current + 1;
+    generationRequestId.current = requestId;
     setGeneratedCode(createWebsite(prompt, theme, sections, brandStyle, audience, ctaLabel));
     setLoading(true);
     setGenerationError("");
@@ -282,6 +285,8 @@ export default function App() {
         throw new Error("Server returned an empty website response.");
       }
 
+      if (requestId !== generationRequestId.current) return;
+
       setGeneratedCode(data.html);
       setGenerationInfo({
         provider: data.provider ? data.provider.toUpperCase() : "LOCAL",
@@ -294,6 +299,8 @@ export default function App() {
         return next;
       });
     } catch (error) {
+      if (requestId !== generationRequestId.current) return;
+
       setGenerationError(
         error instanceof TypeError
           ? "Backend se connect nahi ho pa raha. Terminal mein npm run server chalao."
@@ -301,7 +308,9 @@ export default function App() {
       );
       setGenerationInfo({ provider: "ERROR", note: "Preview generation failed." });
     } finally {
-      setLoading(false);
+      if (requestId === generationRequestId.current) {
+        setLoading(false);
+      }
     }
   }
 
@@ -320,13 +329,36 @@ export default function App() {
     setPreviewVersion((version) => version + 1);
   }
 
+  function changeAudience(nextAudience) {
+    setAudience(nextAudience);
+    setGeneratedCode(createWebsite(prompt, theme, sections, brandStyle, nextAudience, ctaLabel));
+    setGenerationError("");
+    setGenerationInfo({
+      provider: "LOCAL",
+      note: `Preview tailored for ${nextAudience}.`,
+    });
+    setPreviewVersion((version) => version + 1);
+  }
+
   function resetWorkspace() {
+    generationRequestId.current += 1;
     setPrompt("Create a modern landing page for an AI education platform");
     setTheme("light");
     setSections({ hero: true, features: true, pricing: true });
     setBrandStyle("minimal");
     setAudience("startup founders");
     setCtaLabel("Get Started");
+    setGeneratedCode(createWebsite(
+      "Create a modern landing page for an AI education platform",
+      "light",
+      { hero: true, features: true, pricing: true },
+      "minimal",
+      "startup founders",
+      "Get Started"
+    ));
+    setLoading(false);
+    setCopied(false);
+    setPreviewTab("preview");
     localStorage.removeItem("vibeui-recent-prompts");
     setRecentPrompts([]);
     setGenerationError("");
@@ -499,7 +531,7 @@ export default function App() {
             <div className="field-grid">
               <div>
                 <label className="field-label" htmlFor="audience-select">AUDIENCE</label>
-                <select id="audience-select" value={audience} onChange={(event) => setAudience(event.target.value)} className="input-select">
+                <select id="audience-select" value={audience} onChange={(event) => changeAudience(event.target.value)} className="input-select">
                   <option value="startup founders">Startup founders</option>
                   <option value="students">Students</option>
                   <option value="design teams">Design teams</option>
