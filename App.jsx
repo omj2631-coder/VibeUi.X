@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+
 function escapeHtml(text) {
   return String(text ?? "")
     .replaceAll("&", "&amp;")
@@ -255,7 +257,7 @@ export default function App() {
     setGenerationInfo({ provider: "LOCAL", note: "Quick preview ready; AI is adding prompt-specific details." });
 
     try {
-      const response = await fetch("/api/generate", {
+      const response = await fetch(`${API_BASE_URL}/api/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, theme, sections, brandStyle, audience, ctaLabel }),
