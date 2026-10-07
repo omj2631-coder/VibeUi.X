@@ -4,7 +4,6 @@ import cors from "cors";
 
 const app = express();
 let openAiBillingUnavailable = false;
-let geminiApiKeyInvalid = false;
 
 app.use(cors());
 app.use(express.json());
@@ -191,63 +190,78 @@ function buildFallbackHtml(prompt, theme = "light", sections = {}, brandStyle = 
 
 async function generateWithGemini(prompt, theme, sections, brandStyle = "minimal", audience = "general audience", ctaLabel = "Get Started") {
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!geminiKey || geminiApiKeyInvalid) return null;
+  if (!geminiKey) return null;
 
-  try {
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=" + geminiKey,
-      {
-        method: "POST",
-        signal: AbortSignal.timeout(10000),
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Create a polished, concise responsive landing page for: ${prompt}. Style: ${brandStyle}; audience: ${audience}; theme: ${theme}. Write specific benefit-led copy, an editorial hero, three useful features, and only these sections: ${["hero", "features", "pricing"].filter((section) => sections[section] !== false).join(", ") || "none"}. Include one relevant images.unsplash.com photo with alt text and CTA "${ctaLabel}". Use compact embedded CSS (no more than 50 rules), no comments, frameworks, scripts, CDNs, or external stylesheets. Keep HTML concise and always return a complete document including </body></html>.`,
-                },
-              ],
+  let lastError;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=" + geminiKey,
+        {
+          method: "POST",
+          signal: AbortSignal.timeout(20000),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `Create a polished, concise responsive landing page for: ${prompt}. Style: ${brandStyle}; audience: ${audience}; theme: ${theme}. Write specific benefit-led copy, an editorial hero, three useful features, and only these sections: ${["hero", "features", "pricing"].filter((section) => sections[section] !== false).join(", ") || "none"}. Include one relevant images.unsplash.com photo with alt text and CTA "${ctaLabel}". Use compact embedded CSS (no more than 50 rules), no comments, frameworks, scripts, CDNs, or external stylesheets. Keep HTML concise and always return a complete document including </body></html>.`,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.45,
+              maxOutputTokens: 3000,
+              candidateCount: 1,
             },
-          ],
-          generationConfig: {
-            temperature: 0.45,
-            maxOutputTokens: 3000,
-            candidateCount: 1,
-          },
-        }),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const requestError = new Error(data?.error?.message || "Gemini request failed");
+        requestError.status = response.status;
+        throw requestError;
       }
-    );
 
-    const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || "")
+        .join("")
+        .trim();
 
-    if (!response.ok) {
-      throw new Error(data?.error?.message || "Gemini request failed");
+      const sanitizedText = sanitizeGeneratedHtml(text);
+
+      if (!sanitizedText) {
+        throw new Error("Gemini returned empty content");
+      }
+
+      if (!/<html[\s>]/i.test(sanitizedText) || !/<body[\s>]/i.test(sanitizedText) || !/<\/html>/i.test(sanitizedText)) {
+        throw new Error("Gemini returned incomplete HTML");
+      }
+
+      return sanitizedText;
+    } catch (error) {
+      lastError = error;
+      const isRetryable =
+        error instanceof TypeError ||
+        error?.name === "TimeoutError" ||
+        error?.name === "AbortError" ||
+        error?.status === 408 ||
+        error?.status === 429 ||
+        error?.status >= 500;
+
+      if (!isRetryable || attempt === 1) break;
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
-
-    const text = data?.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text || "")
-      .join("")
-      .trim();
-
-    const sanitizedText = sanitizeGeneratedHtml(text);
-
-    if (!sanitizedText) {
-      throw new Error("Gemini returned empty content");
-    }
-
-    if (!/<html[\s>]/i.test(sanitizedText) || !/<body[\s>]/i.test(sanitizedText) || !/<\/html>/i.test(sanitizedText)) {
-      throw new Error("Gemini returned incomplete HTML");
-    }
-
-    return sanitizedText;
-  } catch (error) {
-    if (/api key not valid|invalid api key/i.test(error.message)) {
-      geminiApiKeyInvalid = true;
-    }
-    console.warn("Gemini failed, falling back:", error.message);
-    return null;
   }
+
+  console.warn("Gemini failed after retry, falling back:", lastError?.message || "Unknown error");
+  return null;
 }
 
 async function generateWithOpenAI(prompt, theme, sections, brandStyle = "minimal", audience = "general audience", ctaLabel = "Get Started") {
@@ -362,9 +376,7 @@ app.post("/api/generate", async (req, res) => {
     );
     const fallbackNote = openAiBillingUnavailable
       ? "OpenAI credits are unavailable, so the local fallback generator is being used."
-      : geminiApiKeyInvalid
-        ? "Gemini API key is invalid. Replace GEMINI_API_KEY in .env; using the local fallback generator."
-        : hasFreeAiKey
+      : hasFreeAiKey
           ? "Gemini is unavailable, so the local fallback generator is being used."
         : "No Gemini API key is configured; using the local fallback generator.";
 
@@ -390,9 +402,7 @@ app.post("/api/generate", async (req, res) => {
       provider: "fallback",
       note: openAiBillingUnavailable
         ? "OpenAI credits are unavailable, so the local fallback generator is being used."
-        : geminiApiKeyInvalid
-          ? "Gemini API key is invalid. Replace GEMINI_API_KEY in .env; using the local fallback generator."
-          : hasFreeAiKey
+        : hasFreeAiKey
             ? "Gemini is unavailable, so the local fallback generator is being used."
             : "No Gemini API key is configured; using the local fallback generator.",
     });
